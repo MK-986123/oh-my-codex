@@ -148,7 +148,7 @@ describe('buildGitBranchLabel', () => {
     await withTempRepo('omx-hud-remote-name-', async (cwd) => {
       const markerName = `omx-hud-shell-marker-${process.pid}`;
       const markerPath = join('/tmp', markerName);
-      const remoteName = `evil;touch\${IFS}/tmp/${markerName}`;
+      const remoteName = `evil;echo>/tmp/${markerName}`;
 
       const { execFileSync } = await import('node:child_process');
       execFileSync('git', ['init'], { cwd, stdio: 'ignore' });
@@ -169,7 +169,7 @@ describe('buildGitBranchLabel', () => {
       });
 
       assert.equal(label, 'project-repo/feature/hardened-hud');
-      await assert.rejects(() => access(markerPath));
+      await assert.rejects(access(markerPath));
     });
   });
 });
