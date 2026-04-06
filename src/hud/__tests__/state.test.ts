@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -142,6 +142,35 @@ describe('buildGitBranchLabel', () => {
       preset: 'focused',
       git: { display: 'repo-branch', repoLabel: 'manual' },
     }, gitRunner), 'manual/feature/test');
+  });
+
+  it('does not allow shell injection through configured remoteName', async () => {
+    await withTempRepo('omx-hud-remote-name-', async (cwd) => {
+      const markerName = `omx-hud-shell-marker-${process.pid}`;
+      const markerPath = join('/tmp', markerName);
+      const remoteName = `evil;echo>/tmp/${markerName}`;
+
+      const { execFileSync } = await import('node:child_process');
+      execFileSync('git', ['init'], { cwd, stdio: 'ignore' });
+      execFileSync('git', ['config', 'user.name', 'Test User'], { cwd, stdio: 'ignore' });
+      execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd, stdio: 'ignore' });
+      await writeFile(join(cwd, 'README.md'), 'test\n');
+      execFileSync('git', ['add', 'README.md'], { cwd, stdio: 'ignore' });
+      execFileSync('git', ['commit', '-m', 'init'], { cwd, stdio: 'ignore' });
+      execFileSync('git', ['checkout', '-b', 'feature/hardened-hud'], { cwd, stdio: 'ignore' });
+      execFileSync('git', ['remote', 'add', remoteName, 'https://github.com/acme/project-repo.git'], {
+        cwd,
+        stdio: 'ignore',
+      });
+
+      const label = buildGitBranchLabel(cwd, {
+        preset: 'focused',
+        git: { display: 'repo-branch', remoteName },
+      });
+
+      assert.equal(label, 'project-repo/feature/hardened-hud');
+      await assert.rejects(access(markerPath));
+    });
   });
 });
 
