@@ -15,6 +15,7 @@ import { join, relative, extname, basename, resolve } from 'path';
 import { existsSync } from 'fs';
 import { promisify } from 'util';
 import { autoStartStdioMcpServer } from './bootstrap.js';
+import { generateRepoMap } from '../utils/repo-map.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -123,6 +124,7 @@ interface DocumentSymbol {
 const SYMBOL_PATTERNS: Array<{ kind: string; re: RegExp }> = [
   // TypeScript/JavaScript
   { kind: 'function', re: /^(?:export\s+)?(?:async\s+)?function\s+(\w+)/m },
+  { kind: 'arrow_function', re: /^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[a-zA-Z0-9_]+)\s*=>/m },
   { kind: 'class', re: /^(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/m },
   { kind: 'interface', re: /^(?:export\s+)?interface\s+(\w+)/m },
   { kind: 'type', re: /^(?:export\s+)?type\s+(\w+)\s*=/m },
@@ -348,6 +350,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'lsp_repo_map',
+      description: 'Generate a high-level structural map of the repository showing where classes, functions, and interfaces are defined. Use this FIRST to understand the codebase before reading full files.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          directory: { type: 'string', description: 'The root directory of the project to map.' },
+          maxFiles: { type: 'integer', description: 'Maximum number of files to include in the map (default 200).' },
+        },
+        required: ['directory'],
+      },
+    },
+    {
       name: 'lsp_workspace_symbols',
       description: 'Search for symbols (functions, classes, etc.) across the workspace by name.',
       inputSchema: {
@@ -478,6 +492,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         diagnosticsByFile: byFile,
         command: result.command,
       });
+    }
+
+    case 'lsp_repo_map': {
+      const dir = a.directory as string;
+      const maxFiles = (a.maxFiles as number) || 200;
+      if (!dir) return errorResult('directory is required');
+      if (!existsSync(dir)) return errorResult(`Directory not found: ${dir}`);
+
+      const mapOutput = await generateRepoMap({ dir, maxFiles });
+      return text(mapOutput);
     }
 
     case 'lsp_document_symbols': {

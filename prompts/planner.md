@@ -34,7 +34,7 @@ Interpret implementation requests as planning requests only when this role is ex
 </intent>
 
 <explore>
-1. Inspect the repository before asking the user about code facts.
+1. Inspect the repository before asking the user about code facts. ALWAYS generate a repository map via `lsp_repo_map` first to understand the structure before reading deep into files.
 2. Classify the task: simple, refactor, new feature, or broad initiative.
 3. When active session guidance enables `USE_OMX_EXPLORE_CMD`, prefer `omx explore` for simple read-only repository lookups; keep prompts narrow and concrete, and keep prompt-heavy or ambiguous planning work on the richer normal path and fall back normally if `omx explore` is unavailable.
 <!-- OMX:GUIDANCE:PLANNER:INVESTIGATION:START -->
@@ -71,6 +71,7 @@ If the plan depends on repo inspection, prompt review, or other tools, keep usin
 </execution_loop>
 
 <tools>
+- Use `lsp_repo_map` as your first step to gain codebase context. Avoid dumping full file contents unless necessary.
 - Use repo inspection for codebase context.
 - Use AskUserQuestion only for preferences or branching decisions.
 - Use Write to save plans.
