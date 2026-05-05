@@ -99,7 +99,8 @@ async function resolveCanonicalPaneFromPaneTarget(paneTarget: any, expectedCwd: 
 async function resolvePreferredModePane(stateDir: string, allowedModes: string[]): Promise<{ mode: string; state: any; pane: string } | null> {
   const scopedDirs = await getScopedStateDirsForCurrentSession(stateDir).catch(() => [stateDir]);
   const dirs = [...scopedDirs];
-  if (!dirs.map((dir) => resolvePath(dir)).includes(resolvePath(stateDir))) {
+  const resolvedStateDir = resolvePath(stateDir);
+  if (!dirs.some((dir) => resolvePath(dir) === resolvedStateDir)) {
     dirs.push(stateDir);
   }
   for (const dir of dirs) {
