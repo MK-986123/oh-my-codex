@@ -412,7 +412,7 @@ async function main() {
     try {
       let hudState: HudNotifyState = { last_turn_at: '', turn_count: 0 };
       if (existsSync(hudStatePath)) {
-        hudState = JSON.parse(await readFile(hudStatePath, 'utf-8'));
+        hudState = { ...hudState, ...JSON.parse(await readFile(hudStatePath, 'utf-8')) };
       }
       const nowIso = new Date().toISOString();
       hudState.last_turn_at = nowIso;
