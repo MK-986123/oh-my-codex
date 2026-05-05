@@ -14,7 +14,7 @@
  */
 
 import { extname, basename } from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 /** Max chars for the whole map output. */
 const MAX_MAP_CHARS = 1000;
@@ -34,7 +34,7 @@ const SOURCE_EXTS = new Set(['.ts', '.tsx', '.js', '.mjs']);
  */
 function getTrackedSourceFiles(cwd: string): string[] {
   try {
-    const out = execSync('git ls-files --cached', {
+    const out = execFileSync('git', ['ls-files', '--cached'], {
       cwd,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],

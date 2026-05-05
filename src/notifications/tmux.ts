@@ -4,7 +4,7 @@
  * Detects the current tmux session name and pane ID for inclusion in notification payloads.
  */
 
-import { execFileSync, execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { buildCapturePaneArgv } from "./tmux-detector.js";
 
 const TMUX_PANE_TARGET_RE = /^%\d+$/;
@@ -27,10 +27,10 @@ export function getCurrentTmuxSession(): string | null {
     try {
       const tmuxPaneTarget = process.env.TMUX_PANE;
       const paneTargetSafe = tmuxPaneTarget && TMUX_PANE_TARGET_RE.test(tmuxPaneTarget) ? tmuxPaneTarget : null;
-      const displayCmd = paneTargetSafe
-        ? `tmux display-message -p -t ${paneTargetSafe} '#S'`
-        : "tmux display-message -p '#S'";
-      const sessionName = execSync(displayCmd, {
+      const args = paneTargetSafe
+        ? ["display-message", "-p", "-t", paneTargetSafe, "#S"]
+        : ["display-message", "-p", "#S"];
+      const sessionName = execFileSync("tmux", args, {
         encoding: "utf-8",
         timeout: 3000,
         stdio: ["pipe", "pipe", "pipe"],
@@ -57,8 +57,9 @@ export function getCurrentTmuxSession(): string | null {
 function detectTmuxSessionByPid(): string | null {
   try {
     // Get all tmux pane PIDs with their session names
-    const output = execSync(
-      "tmux list-panes -a -F '#{pane_pid} #{session_name}'",
+    const output = execFileSync(
+      "tmux",
+      ["list-panes", "-a", "-F", "#{pane_pid} #{session_name}"],
       {
         encoding: "utf-8",
         timeout: 3000,
@@ -120,7 +121,7 @@ export function getTeamTmuxSessions(teamName: string): string[] {
 
   const prefix = `omx-team-${sanitized}`;
   try {
-    const output = execSync("tmux list-sessions -F '#{session_name}'", {
+    const output = execFileSync("tmux", ["list-sessions", "-F", "#{session_name}"], {
       encoding: "utf-8",
       timeout: 3000,
       stdio: ["pipe", "pipe", "pipe"],
@@ -188,7 +189,7 @@ export function getCurrentTmuxPaneId(): string | null {
   // but it is still better than nothing and matches the PID-walk fallback below.
   if (process.env.TMUX) {
     try {
-      const paneId = execSync("tmux display-message -p '#{pane_id}'", {
+      const paneId = execFileSync("tmux", ["display-message", "-p", "#{pane_id}"], {
         encoding: "utf-8",
         timeout: 3000,
         stdio: ["pipe", "pipe", "pipe"],
@@ -210,8 +211,9 @@ export function getCurrentTmuxPaneId(): string | null {
  */
 function detectTmuxPaneByPid(): string | null {
   try {
-    const output = execSync(
-      "tmux list-panes -a -F '#{pane_pid} #{pane_id}'",
+    const output = execFileSync(
+      "tmux",
+      ["list-panes", "-a", "-F", "#{pane_pid} #{pane_id}"],
       {
         encoding: "utf-8",
         timeout: 3000,
