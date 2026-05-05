@@ -13,6 +13,9 @@ import {
 
 describe('getCurrentTmuxSession', () => {
   const originalTmux = process.env.TMUX;
+  const originalPane = process.env.TMUX_PANE;
+  const originalPath = process.env.PATH;
+  const tmpDirs: string[] = [];
 
   afterEach(() => {
     if (originalTmux !== undefined) {
@@ -20,12 +23,128 @@ describe('getCurrentTmuxSession', () => {
     } else {
       delete process.env.TMUX;
     }
+    if (originalPane !== undefined) {
+      process.env.TMUX_PANE = originalPane;
+    } else {
+      delete process.env.TMUX_PANE;
+    }
+    process.env.PATH = originalPath;
+    for (const dir of tmpDirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('handles missing TMUX env without throwing', () => {
     delete process.env.TMUX;
     const value = getCurrentTmuxSession();
     assert.ok(value === null || typeof value === 'string');
+  });
+
+  it('returns session name when TMUX is set and TMUX_PANE is valid', () => {
+    // Fake tmux that records whether it was invoked with a -t flag and echoes the session
+    const fakeBinDir = mkdtempSync(join(tmpdir(), 'omx-tmux-session-test-'));
+    tmpDirs.push(fakeBinDir);
+    const tmuxPath = join(fakeBinDir, 'tmux');
+    writeFileSync(
+      tmuxPath,
+      [
+        '#!/bin/sh',
+        '# Fake tmux for getCurrentTmuxSession tests',
+        'cmd="$1"; shift',
+        'if [ "$cmd" = "display-message" ]; then',
+        '  target=""',
+        '  while [ "$#" -gt 0 ]; do',
+        '    if [ "$1" = "-t" ]; then shift; target="$1"; shift; continue; fi',
+        '    shift',
+        '  done',
+        '  if [ -n "$target" ]; then',
+        '    printf "session-for-%s\\n" "$target"',
+        '  else',
+        '    printf "default-session\\n"',
+        '  fi',
+        'fi',
+      ].join('\n'),
+    );
+    chmodSync(tmuxPath, 0o755);
+    process.env.PATH = `${fakeBinDir}:${originalPath ?? ''}`;
+
+    process.env.TMUX = '/tmp/tmux-1000/default,12345,0';
+    process.env.TMUX_PANE = '%0';
+    const result = getCurrentTmuxSession();
+    // Should use targeted call: tmux display-message -p -t %0 #S
+    assert.equal(result, 'session-for-%0');
+  });
+
+  it('falls back to untargeted call when TMUX_PANE is unsafe/invalid', () => {
+    // Fake tmux that returns different values for targeted vs untargeted calls
+    const fakeBinDir = mkdtempSync(join(tmpdir(), 'omx-tmux-session-unsafe-'));
+    tmpDirs.push(fakeBinDir);
+    const tmuxPath = join(fakeBinDir, 'tmux');
+    writeFileSync(
+      tmuxPath,
+      [
+        '#!/bin/sh',
+        'cmd="$1"; shift',
+        'if [ "$cmd" = "display-message" ]; then',
+        '  target=""',
+        '  while [ "$#" -gt 0 ]; do',
+        '    if [ "$1" = "-t" ]; then shift; target="$1"; shift; continue; fi',
+        '    shift',
+        '  done',
+        '  if [ -n "$target" ]; then',
+        // If the unsafe value were passed as -t, it would be a non-empty target
+        '    printf "targeted\\n"',
+        '  else',
+        '    printf "default-session\\n"',
+        '  fi',
+        'fi',
+      ].join('\n'),
+    );
+    chmodSync(tmuxPath, 0o755);
+    process.env.PATH = `${fakeBinDir}:${originalPath ?? ''}`;
+
+    process.env.TMUX = '/tmp/tmux-1000/default,12345,0';
+    // Unsafe TMUX_PANE: contains shell metacharacters – must be ignored
+    process.env.TMUX_PANE = '%1;rm -rf /';
+    const result = getCurrentTmuxSession();
+    // TMUX_PANE_TARGET_RE (/^%\d+$/) rejects the unsafe value, so the
+    // untargeted path is used and we get "default-session", not "targeted"
+    assert.equal(result, 'default-session');
+  });
+
+  it('falls back to untargeted call when TMUX_PANE lacks the % prefix', () => {
+    // Fake tmux that inspects whether it received a -t argument, so we can verify
+    // the untargeted argv is used (i.e. the invalid TMUX_PANE was not forwarded)
+    const fakeBinDir = mkdtempSync(join(tmpdir(), 'omx-tmux-session-noprefix-'));
+    tmpDirs.push(fakeBinDir);
+    const tmuxPath = join(fakeBinDir, 'tmux');
+    writeFileSync(
+      tmuxPath,
+      [
+        '#!/bin/sh',
+        'cmd="$1"; shift',
+        'if [ "$cmd" = "display-message" ]; then',
+        '  target=""',
+        '  while [ "$#" -gt 0 ]; do',
+        '    if [ "$1" = "-t" ]; then shift; target="$1"; shift; continue; fi',
+        '    shift',
+        '  done',
+        '  if [ -n "$target" ]; then',
+        '    printf "targeted\\n"',
+        '  else',
+        '    printf "no-prefix-session\\n"',
+        '  fi',
+        'fi',
+      ].join('\n'),
+    );
+    chmodSync(tmuxPath, 0o755);
+    process.env.PATH = `${fakeBinDir}:${originalPath ?? ''}`;
+
+    process.env.TMUX = '/tmp/tmux-1000/default,12345,0';
+    process.env.TMUX_PANE = '42'; // missing % prefix – fails TMUX_PANE_TARGET_RE
+    const result = getCurrentTmuxSession();
+    // Regex rejects '42', so the untargeted path is used → 'no-prefix-session', not 'targeted'
+    assert.equal(result, 'no-prefix-session');
   });
 });
 
