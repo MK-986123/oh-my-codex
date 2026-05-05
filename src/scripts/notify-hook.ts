@@ -23,6 +23,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 
 import { safeString, asNumber } from './notify-hook/utils.js';
+import type { HudMetrics, HudNotifyState } from '../hud/types.js';
 import {
   getSessionTokenUsage,
   getQuotaUsage,
@@ -336,7 +337,7 @@ async function main() {
   if (!isTeamWorker) {
     const metricsPath = join(omxDir, 'metrics.json');
     try {
-      let metrics = {
+      let metrics: HudMetrics = {
         total_turns: 0,
         session_turns: 0,
         last_activity: '',
@@ -384,8 +385,8 @@ async function main() {
       }
 
       if (quotaUsage) {
-        if (quotaUsage.fiveHourLimitPct !== null) (metrics as any).five_hour_limit_pct = quotaUsage.fiveHourLimitPct;
-        if (quotaUsage.weeklyLimitPct !== null) (metrics as any).weekly_limit_pct = quotaUsage.weeklyLimitPct;
+        if (quotaUsage.fiveHourLimitPct !== null) metrics.five_hour_limit_pct = quotaUsage.fiveHourLimitPct;
+        if (quotaUsage.weeklyLimitPct !== null) metrics.weekly_limit_pct = quotaUsage.weeklyLimitPct;
       }
 
       await writeFile(metricsPath, JSON.stringify(metrics, null, 2));
@@ -409,15 +410,15 @@ async function main() {
   if (!isTeamWorker) {
     const hudStatePath = join(stateDir, 'hud-state.json');
     try {
-      let hudState = { last_turn_at: '', turn_count: 0 };
+      let hudState: HudNotifyState = { last_turn_at: '', turn_count: 0 };
       if (existsSync(hudStatePath)) {
         hudState = JSON.parse(await readFile(hudStatePath, 'utf-8'));
       }
       const nowIso = new Date().toISOString();
       hudState.last_turn_at = nowIso;
-      (hudState as any).last_progress_at = nowIso;
+      hudState.last_progress_at = nowIso;
       hudState.turn_count = (hudState.turn_count || 0) + 1;
-      (hudState as any).last_agent_output = (payload['last-assistant-message'] || payload.last_assistant_message || '')
+      hudState.last_agent_output = (payload['last-assistant-message'] || payload.last_assistant_message || '')
         .slice(0, 100);
       await writeFile(hudStatePath, JSON.stringify(hudState, null, 2));
     } catch {
