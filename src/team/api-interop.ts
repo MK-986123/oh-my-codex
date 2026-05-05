@@ -261,7 +261,8 @@ function buildIdleState(
 ): Record<string, unknown> {
   const workerNames = listTeamWorkerNames(summary, snapshot);
   const idleWorkers = workerNames.filter((workerName) => snapshot?.workerStateByName[workerName] === 'idle');
-  const nonIdleWorkers = workerNames.filter((workerName) => !idleWorkers.includes(workerName));
+  const idleWorkersSet = new Set(idleWorkers);
+  const nonIdleWorkers = workerNames.filter((workerName) => !idleWorkersSet.has(workerName));
   const lastIdleTransitionByWorker = Object.fromEntries(
     workerNames.map((workerName) => [workerName, summarizeEvent(findLatestWorkerIdleEvent(recentEvents, workerName))]),
   );
