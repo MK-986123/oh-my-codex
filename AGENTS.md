@@ -35,6 +35,8 @@ Keep runtime marker contracts stable and non-destructive when overlays are appli
 - Prefer evidence over assumption; verify before claiming completion.
 - Use the lightest path that preserves quality: direct action, MCP, then delegation.
 - Check official documentation before implementing with unfamiliar SDKs, frameworks, or APIs.
+- **Context Management First:** Always map before you read. Use `lsp_repo_map` to get a structural overview of the project before requesting full file reads. Rely on the map to find definitions, interfaces, and classes.
+- Use `ast_grep_search` and `lsp_document_symbols` to pinpoint relevant logic instead of blindly dumping entire files into context.
 - Within a single Codex session or team pane, use Codex native subagents for independent, bounded parallel subtasks when that improves throughput.
 <!-- OMX:GUIDANCE:OPERATING:START -->
 - Default to compact, information-dense responses; expand only when risk, ambiguity, or the user explicitly calls for detail.
@@ -239,6 +241,7 @@ Command routing:
 - For simple file/symbol lookups, use `omx explore` FIRST before attempting full code analysis.
 
 When to use what:
+- Use `lsp_repo_map` immediately when you need to understand the project structure and symbol locations.
 - Use `omx explore --prompt ...` for simple read-only lookups.
 - Use `omx sparkshell` for noisy read-only shell commands, bounded verification runs, repo-wide listing/search, or tmux-pane summaries; `omx sparkshell --tmux-pane ...` is explicit opt-in.
 - Keep ambiguous, implementation-heavy, edit-heavy, or non-shell-only work on the richer normal path.
