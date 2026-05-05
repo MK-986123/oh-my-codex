@@ -11,7 +11,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 /** Config shape for the code-simplifier feature */
 export interface CodeSimplifierConfig {
@@ -82,7 +82,7 @@ export function getModifiedFiles(
   maxFiles: number = DEFAULT_MAX_FILES,
 ): string[] {
   try {
-    const output = execSync('git status --porcelain --untracked-files=all', {
+    const output = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
       cwd,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
