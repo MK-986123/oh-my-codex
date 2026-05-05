@@ -260,9 +260,15 @@ function buildIdleState(
   recentEvents: TeamEvent[],
 ): Record<string, unknown> {
   const workerNames = listTeamWorkerNames(summary, snapshot);
-  const idleWorkers = workerNames.filter((workerName) => snapshot?.workerStateByName[workerName] === 'idle');
-  const idleWorkersSet = new Set(idleWorkers);
-  const nonIdleWorkers = workerNames.filter((workerName) => !idleWorkersSet.has(workerName));
+  const idleWorkers: string[] = [];
+  const nonIdleWorkers: string[] = [];
+  for (const workerName of workerNames) {
+    if (snapshot?.workerStateByName?.[workerName] === 'idle') {
+      idleWorkers.push(workerName);
+    } else {
+      nonIdleWorkers.push(workerName);
+    }
+  }
   const lastIdleTransitionByWorker = Object.fromEntries(
     workerNames.map((workerName) => [workerName, summarizeEvent(findLatestWorkerIdleEvent(recentEvents, workerName))]),
   );
