@@ -71,6 +71,7 @@ export interface HudMetrics {
 /** HUD notify state written by notify hook */
 export interface HudNotifyState {
   last_turn_at: string;
+  last_progress_at?: string;
   turn_count: number;
   last_agent_output?: string;
 }
